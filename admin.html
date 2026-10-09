@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Panel de QR</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+  :root{--bg:#f4f4f6;--card:#fff;--text:#1d1d22;--muted:#6b6b76;--line:#e2e2e8;--accent:#1f6feb;--ok:#1a7f37;--bad:#c62828}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px}
+  .wrap{max-width:880px;margin:0 auto;padding:16px}
+  h1{font-size:22px;margin:8px 0 16px}
+  h2{font-size:16px;margin:0 0 10px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+  input{font:inherit;padding:9px 10px;border:1px solid var(--line);border-radius:8px;width:100%;min-width:0;background:#fff;color:var(--text)}
+  button{font:inherit;padding:9px 14px;border:0;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer;white-space:nowrap}
+  button.sec{background:#e9e9ef;color:var(--text)}
+  button:disabled{opacity:.5;cursor:default}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .row > input{flex:1}
+  .muted{color:var(--muted);font-size:13px}
+  .status{font-size:14px;margin-top:8px;min-height:18px}
+  .status.ok{color:var(--ok)} .status.bad{color:var(--bad)}
+  .item{display:grid;grid-template-columns:62px 1fr auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+  .code{font-weight:700;font-family:ui-monospace,Consolas,monospace}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ccc;margin-right:6px}
+  .dot.on{background:var(--ok)}
+  .acts{display:flex;gap:6px}
+  .acts button{padding:7px 10px;font-size:13px}
+  .sticky{position:sticky;bottom:0;background:var(--bg);padding:10px 0}
+  #qrModal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:16px}
+  #qrModal .box{background:#fff;border-radius:12px;padding:20px;text-align:center;max-width:320px;width:100%}
+  #qrModal img{width:100%;height:auto}
+  #print{display:none}
+  @media (max-width:560px){.item{grid-template-columns:52px 1fr}.acts{grid-column:1/-1}}
+  @media print{
+    @page{margin:10mm}
+    body{background:#fff}
+    .wrap,#qrModal{display:none!important}
+    #print{display:grid!important;grid-template-columns:repeat(3,1fr);gap:6mm}
+    .pcard{border:1px dashed #999;border-radius:4mm;padding:5mm;text-align:center;break-inside:avoid;page-break-inside:avoid}
+    .pcard .t{font-size:15pt;font-weight:800;margin-bottom:1mm}
+    .pcard .s{font-size:13pt;letter-spacing:1px;margin-bottom:2mm}
+    .pcard img{width:42mm;height:42mm}
+    .pcard .c{font-family:monospace;font-size:8pt;color:#555;margin-top:1mm}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>⭐ Panel de QR de reseñas</h1>
+
+  <div class="card" id="tokenCard">
+    <h2>1. Clave de acceso</h2>
+    <p class="muted">Pega aquí tu token de GitHub. Se guarda solo en este navegador. Sin él nadie puede cambiar tus enlaces.</p>
+    <div class="row">
+      <input id="token" type="password" placeholder="github_pat_..." autocomplete="off">
+      <button id="saveToken">Entrar</button>
+      <button class="sec" id="logout">Salir</button>
+    </div>
+    <div class="status" id="tokenStatus"></div>
+  </div>
+
+  <div id="panel" style="display:none">
+    <div class="card">
+      <h2>2. Asignar enlaces</h2>
+      <p class="muted">Pega el link (Instagram, Google, Facebook, WhatsApp…) al lado del código y pulsa <b>Guardar cambios</b>. Déjalo vacío para desactivar un QR.</p>
+      <div class="row"><input id="search" placeholder="Buscar código o link… (ej. A015 o instagram)"></div>
+      <div class="muted" id="counts" style="margin-top:8px"></div>
+      <div id="list" style="margin-top:8px"></div>
+      <div class="sticky row">
+        <button id="save">Guardar cambios</button>
+        <span class="status" id="saveStatus" style="margin:0"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>3. Crear más códigos</h2>
+      <div class="row">
+        <input id="howMany" type="number" min="1" max="2000" value="100" style="max-width:120px">
+        <button id="addCodes">Crear códigos</button>
+      </div>
+      <p class="muted">Se agregan al final de la lista. Luego pulsa <b>Guardar cambios</b>.</p>
+    </div>
+
+    <div class="card">
+      <h2>4. Imprimir QR</h2>
+      <div class="row">
+        <span>Desde</span><input id="from" placeholder="A001" style="max-width:110px">
+        <span>hasta</span><input id="to" placeholder="A030" style="max-width:110px">
+        <button id="printBtn">Imprimir hoja</button>
+      </div>
+      <p class="muted">Salen 12 por página (3×4), con "¡Déjanos tu reseña!" y el código debajo. En la ventana de imprimir puedes elegir "Guardar como PDF".</p>
+    </div>
+  </div>
+</div>
+
+<div id="qrModal"><div class="box">
+  <div class="code" id="qrCode" style="font-size:18px;margin-bottom:8px"></div>
+  <img id="qrImg" alt="QR">
+  <div class="muted" id="qrUrl" style="word-break:break-all;margin:8px 0"></div>
+  <div class="row" style="justify-content:center">
+    <a id="qrDl" download><button>Descargar</button></a>
+    <button class="sec" id="qrClose">Cerrar</button>
+  </div>
+</div></div>
+
+<div id="print"></div>
+
+<script>
+var OWNER = "x4vierstudio-spec";
+var REPO = "x4vierstudio-spec.github.io";
+var FILE = "enlaces.json";
+var SITE = "https://" + REPO + "/?";
+var API = "https://api.github.com/repos/" + OWNER + "/" + REPO + "/contents/" + FILE;
+
+var data = {}, sha = null, dirty = false;
+var $ = function(id){ return document.getElementById(id); };
+
+function getToken(){ try { return localStorage.getItem("qr_token") || ""; } catch(e){ return window._tok || ""; } }
+function setToken(t){ window._tok = t; try { t ? localStorage.setItem("qr_token", t) : localStorage.removeItem("qr_token"); } catch(e){} }
+function status(el, msg, ok){ el.textContent = msg; el.className = "status " + (ok === true ? "ok" : ok === false ? "bad" : ""); }
+
+function b64decode(s){ return decodeURIComponent(escape(atob(s.replace(/\n/g, "")))); }
+function b64encode(s){ return btoa(unescape(encodeURIComponent(s))); }
+
+function headers(){
+  return { "Authorization": "Bearer " + getToken(), "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+}
+
+function load(){
+  status($("tokenStatus"), "Cargando…");
+  return fetch(API + "?ref=main&t=" + Date.now(), { headers: headers(), cache: "no-store" })
+    .then(function(r){
+      if (r.status === 401 || r.status === 403) throw new Error("Token inválido o sin permiso para este repositorio.");
+      if (!r.ok) throw new Error("Error " + r.status + " al leer los enlaces.");
+      return r.json();
+    })
+    .then(function(j){
+      sha = j.sha;
+      data = JSON.parse(b64decode(j.content));
+      dirty = false;
+      $("panel").style.display = "block";
+      status($("tokenStatus"), "Conectado ✔", true);
+      render();
+    })
+    .catch(function(e){ $("panel").style.display = "none"; status($("tokenStatus"), e.message, false); });
+}
+
+function codesSorted(){
+  return Object.keys(data).sort(function(a, b){ return num(a) - num(b) || a.localeCompare(b); });
+}
+function num(c){ var m = c.match(/(\d+)$/); return m ? parseInt(m[1], 10) : 0; }
+
+function render(){
+  var q = $("search").value.trim().toLowerCase();
+  var list = $("list"); list.innerHTML = "";
+  var keys = codesSorted(), active = 0, shown = 0;
+  keys.forEach(function(k){ if (data[k]) active++; });
+  keys.forEach(function(k){
+    if (q && k.toLowerCase().indexOf(q) < 0 && (data[k] || "").toLowerCase().indexOf(q) < 0) return;
+    if (shown >= 300 && !q) return;
+    shown++;
+    var row = document.createElement("div"); row.className = "item";
+    var c = document.createElement("div"); c.className = "code";
+    var dot = document.createElement("span"); dot.className = "dot" + (data[k] ? " on" : "");
+    c.appendChild(dot); c.appendChild(document.createTextNode(k));
+    var inp = document.createElement("input"); inp.value = data[k] || ""; inp.placeholder = "Sin asignar — pega un link";
+    inp.addEventListener("input", function(){ data[k] = inp.value.trim(); dot.className = "dot" + (data[k] ? " on" : ""); markDirty(); });
+    inp.addEventListener("blur", function(){ var v = normalize(inp.value); inp.value = v; data[k] = v; });
+    var acts = document.createElement("div"); acts.className = "acts";
+    var qb = document.createElement("button"); qb.className = "sec"; qb.textContent = "QR"; qb.onclick = function(){ showQR(k); };
+    var tb = document.createElement("button"); tb.className = "sec"; tb.textContent = "Probar"; tb.onclick = function(){ if (data[k]) window.open(normalize(data[k]), "_blank", "noopener"); };
+    acts.appendChild(qb); acts.appendChild(tb);
+    row.appendChild(c); row.appendChild(inp); row.appendChild(acts);
+    list.appendChild(row);
+  });
+  $("counts").textContent = keys.length + " códigos · " + active + " activos · " + (keys.length - active) + " libres" + (!q && keys.length > 300 ? " · usa el buscador para ver el resto" : "");
+}
+
+function normalize(v){
+  v = (v || "").trim();
+  if (!v) return "";
+  if (!/^https?:\/\//i.test(v)) v = "https://" + v;
+  return v;
+}
+
+function markDirty(){ dirty = true; status($("saveStatus"), "Cambios sin guardar"); }
+
+function save(){
+  Object.keys(data).forEach(function(k){ data[k] = normalize(data[k]); });
+  var body = JSON.stringify(sortedObj(), null, 2) + "\n";
+  $("save").disabled = true; status($("saveStatus"), "Guardando…");
+  fetch(API, {
+    method: "PUT", headers: headers(),
+    body: JSON.stringify({ message: "Actualizar enlaces", content: b64encode(body), sha: sha, branch: "main" })
+  }).then(function(r){
+    if (r.status === 409 || r.status === 422) throw new Error("El archivo cambió en otro lado. Recarga la página y vuelve a intentarlo.");
+    if (!r.ok) throw new Error("No se pudo guardar (error " + r.status + ").");
+    return r.json();
+  }).then(function(j){
+    sha = j.content.sha; dirty = false;
+    status($("saveStatus"), "Guardado ✔ Los QR se actualizan en 1–2 minutos.", true);
+  }).catch(function(e){ status($("saveStatus"), e.message, false); })
+    .finally(function(){ $("save").disabled = false; });
+}
+
+function sortedObj(){ var o = {}; codesSorted().forEach(function(k){ o[k] = data[k] || ""; }); return o; }
+
+function addCodes(){
+  var n = Math.min(2000, Math.max(1, parseInt($("howMany").value, 10) || 0));
+  var max = 0; Object.keys(data).forEach(function(k){ if (/^A\d+$/.test(k)) max = Math.max(max, num(k)); });
+  for (var i = 1; i <= n; i++){ var c = "A" + String(max + i).padStart(3, "0"); data[c] = ""; }
+  $("from").value = "A" + String(max + 1).padStart(3, "0");
+  $("to").value = "A" + String(max + n).padStart(3, "0");
+  markDirty(); render();
+  status($("saveStatus"), n + " códigos nuevos creados. Pulsa Guardar cambios.");
+}
+
+function qrDataUrl(code, cell){
+  var q = qrcode(0, "M"); q.addData(SITE + code); q.make();
+  return q.createDataURL(cell || 8, 4);
+}
+
+function showQR(code){
+  $("qrCode").textContent = code;
+  var url = qrDataUrl(code, 10);
+  $("qrImg").src = url; $("qrDl").href = url; $("qrDl").download = "QR-" + code + ".gif";
+  $("qrUrl").textContent = SITE + code;
+  $("qrModal").style.display = "flex";
+}
+
+function printSheet(){
+  var a = num($("from").value), b = num($("to").value);
+  if (!a || !b || b < a){ alert("Escribe un rango válido, por ejemplo A001 hasta A030."); return; }
+  if (b - a > 600){ alert("Máximo 600 por impresión."); return; }
+  var p = $("print"); p.innerHTML = "";
+  for (var i = a; i <= b; i++){
+    var code = "A" + String(i).padStart(3, "0");
+    var d = document.createElement("div"); d.className = "pcard";
+    d.innerHTML = '<div class="t">¡Déjanos tu reseña!</div><div class="s">★★★★★</div><img alt=""><div class="c"></div>';
+    d.querySelector("img").src = qrDataUrl(code, 6);
+    d.querySelector(".c").textContent = code;
+    p.appendChild(d);
+  }
+  setTimeout(function(){ window.print(); }, 300);
+}
+
+$("saveToken").onclick = function(){ setToken($("token").value.trim()); $("token").value = ""; load(); };
+$("logout").onclick = function(){ setToken(""); $("panel").style.display = "none"; status($("tokenStatus"), "Sesión cerrada."); };
+$("search").oninput = render;
+$("save").onclick = save;
+$("addCodes").onclick = addCodes;
+$("printBtn").onclick = printSheet;
+$("qrClose").onclick = function(){ $("qrModal").style.display = "none"; };
+$("qrModal").onclick = function(e){ if (e.target === this) this.style.display = "none"; };
+window.addEventListener("beforeunload", function(e){ if (dirty){ e.preventDefault(); e.returnValue = ""; } });
+
+if (getToken()) load();
+</script>
+</body>
+</html>
