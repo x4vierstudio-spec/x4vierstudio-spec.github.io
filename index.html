@@ -13,12 +13,14 @@
 <body>
 <div class="box" id="msg"><p>Cargando…</p></div>
 <script>
-  // El código va después del "?" en el enlace. Ejemplo: https://TUUSUARIO.github.io/?A001
+  // El código va después del "?" en el enlace. Ejemplo: https://x4vierstudio-spec.github.io/?A001
   var codigo = decodeURIComponent(location.search.replace("?", "")).trim().toUpperCase();
   var msg = document.getElementById("msg");
 
   function mostrar(titulo, texto){
-    msg.innerHTML = "<h1>" + titulo + "</h1><p>" + texto + "</p>";
+    msg.innerHTML = "<h1></h1><p></p>";
+    msg.querySelector("h1").textContent = titulo;
+    msg.querySelector("p").textContent = texto;
   }
 
   fetch("enlaces.json?v=" + Date.now(), {cache: "no-store"})
